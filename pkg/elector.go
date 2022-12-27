@@ -210,7 +210,7 @@ func (node *ElectorNode) run() error {
 				klog.Infof("[%s] started leading", node.config.ID)
 
 				// Add/update Pod label marking this instance as the leader.
-				if err := updatePodLabel(node.config, client, StatusLeader); err != nil {
+				if err := updatePodLabel(node, client, StatusLeader); err != nil {
 					klog.Errorf("failed to set leader annotation: %v", err)
 				}
 			},
@@ -218,7 +218,7 @@ func (node *ElectorNode) run() error {
 				klog.Infof("[%s] stepping down as leader", node.config.ID)
 
 				// Add/update Pod label marking this instance as not the leader.
-				if err := updatePodLabel(node.config, client, StatusStandby); err != nil {
+				if err := updatePodLabel(node, client, StatusStandby); err != nil {
 					klog.Errorf("failed to set standby annotation: %v", err)
 				}
 			},
@@ -233,7 +233,7 @@ func (node *ElectorNode) run() error {
 				klog.Infof("new leader elected: %s", identity)
 
 				// Add/update Pod label marking this instance as a standby node.
-				if err := updatePodLabel(node.config, client, StatusStandby); err != nil {
+				if err := updatePodLabel(node, client, StatusStandby); err != nil {
 					klog.Errorf("failed to set standby annotation: %v", err)
 				}
 			},
@@ -255,11 +255,11 @@ type patchLabel struct {
 //
 // If the elector instance becomes the leader, a value of "leader" is set. Otherwise, a
 // value of "standby" is set.
-func updatePodLabel(cfg *ElectorConfig, clientset *kubernetes.Clientset, value string) error {
+func updatePodLabel(node *ElectorNode, clientset *kubernetes.Clientset, value string) error {
 
 	// First, get the Pod. We want to first check whether or not the Pod has the
 	// label key or not. If not, add it; if so, update it.
-	pod, err := clientset.CoreV1().Pods(cfg.Namespace).Get(cfg.PodName, metav1.GetOptions{})
+	pod, err := clientset.CoreV1().Pods(node.config.Namespace).Get(node.ctx, node.config.PodName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -279,10 +279,12 @@ func updatePodLabel(cfg *ElectorConfig, clientset *kubernetes.Clientset, value s
 		Value: value,
 	}}
 	payloadBytes, _ := json.Marshal(payload)
-	_, err = clientset.CoreV1().Pods(cfg.Namespace).Patch(
-		cfg.PodName,
+	_, err = clientset.CoreV1().Pods(node.config.Namespace).Patch(
+		node.ctx,
+		node.config.PodName,
 		types.JSONPatchType,
 		payloadBytes,
+		metav1.PatchOptions{},
 	)
 	return err
 }

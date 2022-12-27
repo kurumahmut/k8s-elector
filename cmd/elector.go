@@ -22,7 +22,7 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/vapor-ware/k8s-elector/pkg"
+	"github.com/kurumahmut/k8s-elector/pkg"
 	"k8s.io/klog"
 )
 
